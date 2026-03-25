@@ -1,0 +1,38 @@
+{
+  "name": "designlint",
+  "version": "0.1.0",
+  "description": "UI/UX design linter — check HTML/CSS for accessibility, contrast, spacing, and design best practices",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx --test tests/core.test.ts",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "design",
+    "lint",
+    "accessibility",
+    "wcag",
+    "contrast",
+    "ui",
+    "ux",
+    "html",
+    "css"
+  ],
+  "author": "Officethree Technologies",
+  "license": "MIT",
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}
