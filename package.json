@@ -1,7 +1,7 @@
 {
   "name": "designlint",
   "version": "0.1.0",
-  "description": "UI/UX design linter — check HTML/CSS for accessibility, contrast, spacing, and design best practices",
+  "description": "UI/UX design linter \u2014 check HTML/CSS for accessibility, contrast, spacing, and design best practices",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -22,7 +22,6 @@
     "css"
   ],
   "author": "Officethree Technologies",
-  "license": "MIT",
   "devDependencies": {
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"
