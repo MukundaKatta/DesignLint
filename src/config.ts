@@ -1,25 +1,31 @@
 /**
- * DesignLint Configuration
- * Default thresholds, rule toggles, and severity levels.
+ * DesignLint configuration: defaults, types, and merge helper.
  */
 
-export type Severity = "error" | "warning" | "info";
+export type Severity = "error" | "warning" | "info" | "off";
 
-export interface RuleConfig {
+export interface BaseRuleConfig {
+  /** Turn the rule on or off without needing severity: "off". */
   enabled: boolean;
   severity: Severity;
 }
 
+export interface RuleConfigs {
+  colorContrast: BaseRuleConfig & { minRatio: number; minRatioLarge: number };
+  fontSizeMinimum: BaseRuleConfig & { minPx: number };
+  spacingConsistency: BaseRuleConfig & { baseUnit: number };
+  buttonSize: BaseRuleConfig & { minWidthPx: number; minHeightPx: number };
+  headingHierarchy: BaseRuleConfig;
+  imageAltText: BaseRuleConfig;
+  viewportMeta: BaseRuleConfig;
+  linkRelNoopener: BaseRuleConfig;
+  formLabel: BaseRuleConfig;
+  duplicateId: BaseRuleConfig;
+  responsiveImages: BaseRuleConfig;
+}
+
 export interface DesignLintConfig {
-  rules: {
-    colorContrast: RuleConfig & { minRatio: number };
-    fontSizeMinimum: RuleConfig & { minPx: number };
-    spacingConsistency: RuleConfig & { baseUnit: number };
-    buttonSize: RuleConfig & { minWidthPx: number; minHeightPx: number };
-    headingHierarchy: RuleConfig;
-    imageAltText: RuleConfig;
-    viewportMeta: RuleConfig;
-  };
+  rules: RuleConfigs;
 }
 
 export const DEFAULT_CONFIG: DesignLintConfig = {
@@ -27,7 +33,8 @@ export const DEFAULT_CONFIG: DesignLintConfig = {
     colorContrast: {
       enabled: true,
       severity: "error",
-      minRatio: 4.5, // WCAG AA for normal text
+      minRatio: 4.5,
+      minRatioLarge: 3.0,
     },
     fontSizeMinimum: {
       enabled: true,
@@ -37,13 +44,13 @@ export const DEFAULT_CONFIG: DesignLintConfig = {
     spacingConsistency: {
       enabled: true,
       severity: "info",
-      baseUnit: 4, // spacing should be multiples of 4px
+      baseUnit: 4,
     },
     buttonSize: {
       enabled: true,
       severity: "error",
       minWidthPx: 44,
-      minHeightPx: 44, // WCAG 2.5.5 target size
+      minHeightPx: 44,
     },
     headingHierarchy: {
       enabled: true,
@@ -57,6 +64,22 @@ export const DEFAULT_CONFIG: DesignLintConfig = {
       enabled: true,
       severity: "warning",
     },
+    linkRelNoopener: {
+      enabled: true,
+      severity: "warning",
+    },
+    formLabel: {
+      enabled: true,
+      severity: "error",
+    },
+    duplicateId: {
+      enabled: true,
+      severity: "error",
+    },
+    responsiveImages: {
+      enabled: true,
+      severity: "info",
+    },
   },
 };
 
@@ -64,19 +87,19 @@ export const DEFAULT_CONFIG: DesignLintConfig = {
 export function mergeConfig(
   overrides: Partial<DesignLintConfig> | undefined
 ): DesignLintConfig {
-  if (!overrides) return { ...DEFAULT_CONFIG };
   const merged = JSON.parse(JSON.stringify(DEFAULT_CONFIG)) as DesignLintConfig;
-  if (overrides.rules) {
-    for (const key of Object.keys(overrides.rules) as Array<
-      keyof typeof overrides.rules
-    >) {
-      if (overrides.rules[key]) {
-        (merged.rules as any)[key] = {
-          ...(merged.rules as any)[key],
-          ...overrides.rules[key],
-        };
-      }
-    }
+  if (!overrides?.rules) return merged;
+
+  for (const key of Object.keys(overrides.rules) as Array<keyof RuleConfigs>) {
+    const patch = overrides.rules[key];
+    if (!patch) continue;
+    const existing = merged.rules[key] as unknown as Record<string, unknown>;
+    const next = { ...existing, ...(patch as unknown as Record<string, unknown>) };
+    (merged.rules as unknown as Record<string, unknown>)[key] = next;
   }
   return merged;
+}
+
+export function ruleEnabled(rule: BaseRuleConfig): boolean {
+  return rule.enabled && rule.severity !== "off";
 }

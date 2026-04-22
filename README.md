@@ -1,147 +1,194 @@
 # DesignLint
 
+[![npm](https://img.shields.io/npm/v/designlint.svg)](https://www.npmjs.com/package/designlint)
 [![CI](https://github.com/MukundaKatta/DesignLint/actions/workflows/ci.yml/badge.svg)](https://github.com/MukundaKatta/DesignLint/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
 
-**A UI/UX design linter that analyzes HTML/CSS for accessibility, contrast, spacing, and design best practices.**
+An accessibility and design linter for HTML/CSS. Catches low-contrast text, tiny touch targets, skipped heading levels, unlabeled form controls, missing alt text, and more — with autofixes for the mechanical ones.
 
-> Inspired by the AI design review tools trend. Catch design issues before they reach production.
+Runs as a **CLI**, a **GitHub Action** (PR annotations + SARIF for Code Scanning), or a programmatic API.
 
----
+```
+$ designlint index.html
+index.html
+  line 12  error   color-contrast
+    Contrast ratio 1.61:1 is below WCAG AA minimum of 4.5:1.
+    in: <p style="color: #ccc; background-color: #fff">
+    tip: Darken the foreground or lighten the background.
+  line 18  error   image-alt-text
+    <img src="hero.png"> is missing alt attribute.
+    fix: Mark image as decorative (alt="" role="presentation")
+  line 21  warning link-rel-noopener
+    <a href="..." target="_blank"> is missing rel="noopener".
+    fix: Add rel="noopener noreferrer" to target="_blank" link
 
-## Architecture
-
-```mermaid
-graph LR
-    A[HTML Input] --> B[DesignLinter]
-    B --> C{Rules Engine}
-    C --> D[Color Contrast]
-    C --> E[Font Size]
-    C --> F[Spacing Grid]
-    C --> G[Button Size]
-    C --> H[Heading Hierarchy]
-    C --> I[Image Alt Text]
-    C --> J[Viewport Meta]
-    D & E & F & G & H & I & J --> K[LintReport]
-    K --> L[Score 0-100]
-    K --> M[Issues Array]
+  3 issues (2 errors, 1 warning). Score 79/100.
 ```
 
-## Quick Start
+## Install
 
 ```bash
-npm install
-npm run build
+npm install -g designlint
+```
+
+Or one-off without installing:
+
+```bash
+npx designlint path/to/page.html
 ```
 
 ## Usage
 
-```typescript
-import { DesignLinter } from "designlint";
+### CLI
 
-const linter = new DesignLinter();
+```bash
+designlint '<inputs...>' [options]
+```
 
-const html = `
-<html>
-<head><title>My Page</title></head>
-<body>
-  <h1>Welcome</h1>
-  <h3>Oops, skipped h2</h3>
-  <p style="color: #eeeeee; background-color: #ffffff; font-size: 10px">
-    Hard to read text
-  </p>
-  <img src="photo.jpg">
-  <button style="width: 30px; height: 30px">X</button>
-</body>
-</html>
-`;
+| Flag | Description |
+|---|---|
+| `--format text\|json\|sarif\|github` | Output format (default `text`) |
+| `--fix` | Apply autofixes in place |
+| `--rule <id...>` | Run only the listed rule IDs |
+| `--config <path>` | JSON config file |
+| `--fail-on error\|warning\|info\|never` | Exit nonzero threshold (default `error`) |
+| `--output <path>` | Write output to a file |
+| `-v`, `--version` | Print version |
 
+**Inputs** can be file paths, globs, or URLs:
+
+```bash
+designlint index.html
+designlint 'src/**/*.html'
+designlint https://example.com --format sarif > results.sarif
+designlint index.html --fix                       # apply autofixes
+designlint index.html --rule color-contrast       # single rule
+```
+
+### GitHub Action
+
+```yaml
+# .github/workflows/designlint.yml
+name: DesignLint
+on: [pull_request]
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+jobs:
+  designlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: MukundaKatta/DesignLint@v0.2.0
+        with:
+          paths: 'src/**/*.html'
+          fail-on: error
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: designlint.sarif
+```
+
+The action:
+
+1. Emits inline GitHub annotations on the PR diff (the `::error`/`::warning` style you see under "Files changed").
+2. Writes SARIF 2.1.0 so you can upload it to **Code Scanning** and get persistent findings in the Security tab.
+3. Fails the job based on `--fail-on` when issues meet the threshold.
+
+### Programmatic
+
+```ts
+import { DesignLinter, applyFixes } from "designlint";
+
+const linter = new DesignLinter({
+  rules: {
+    colorContrast: { minRatio: 4.5 },
+    buttonSize: { minWidthPx: 44, minHeightPx: 44 },
+    spacingConsistency: { baseUnit: 8 },
+  },
+});
+
+const html = await fetch("https://example.com").then((r) => r.text());
 const report = linter.lint(html);
 
-console.log(`Score: ${report.score}/100`);
 console.log(report.summary);
+console.log(report.issues);
+console.log(report.score);
 
-for (const issue of report.issues) {
-  console.log(`[${issue.severity.toUpperCase()}] ${issue.id}: ${issue.message}`);
-  console.log(`  Element: ${issue.element}`);
-  console.log(`  Fix: ${issue.suggestion}\n`);
-}
-```
-
-### Example Output
-
-```
-Score: 24/100
-Found 6 issue(s): 4 error(s), 2 warning(s). Design score: 24/100.
-
-[ERROR] color-contrast: Color contrast ratio 1.07:1 is below the WCAG AA minimum of 4.5:1.
-  Element: <p style="...">
-  Fix: Increase contrast between foreground (#eeeeee) and background (#ffffff).
-
-[WARNING] font-size-minimum: Font size 10px (10px) is below the minimum of 12px.
-  Element: <p style="...">
-  Fix: Increase font size to at least 12px for readability.
-
-[WARNING] heading-hierarchy: Heading <h3> skips level(s) after <h1>.
-  Element: <h3>
-  Fix: Use <h2> instead of <h3> to maintain a logical heading hierarchy.
-
-[ERROR] image-alt-text: Image is missing meaningful alt text.
-  Element: <img src="photo.jpg">
-  Fix: Add a descriptive alt attribute that conveys the image content or purpose.
-
-[ERROR] button-size: Interactive element width 30px is below the minimum touch target of 44px.
-  Element: <button style="...">
-  Fix: Set minimum width to 44px for accessible touch targets.
-
-[WARNING] viewport-meta: Document is missing a responsive viewport meta tag.
-  Element: <head>
-  Fix: Add <meta name="viewport" content="width=device-width, initial-scale=1"> inside <head>.
+const { output, appliedCount } = applyFixes(html, report.issues);
 ```
 
 ## Rules
 
-| Rule | Description | Default Severity |
-|------|-------------|-----------------|
-| `color-contrast` | WCAG AA contrast ratio (4.5:1 min) | error |
-| `font-size-minimum` | Text below 12px | warning |
-| `spacing-consistency` | Spacing not on 4px grid | info |
-| `button-size` | Touch targets below 44x44px | error |
-| `heading-hierarchy` | Skipped heading levels | warning |
-| `image-alt-text` | Missing/empty alt on images | error |
-| `viewport-meta` | Missing responsive viewport | warning |
+| ID | Checks | Severity | Autofix |
+|---|---|---|---|
+| `color-contrast` | WCAG AA contrast ratio (4.5:1 normal, 3:1 large text). Handles `rgba` alpha composition. | error | no |
+| `font-size-minimum` | Font sizes below 12px are hard to read. | warning | no |
+| `spacing-consistency` | Margin/padding/gap should snap to your base unit (4 or 8). | info | no |
+| `button-size` | Touch targets must be at least 44x44 (WCAG 2.5.5). | error | no |
+| `heading-hierarchy` | Headings should not skip levels (`h1 -> h3`). | warning | no |
+| `image-alt-text` | Every `<img>` needs meaningful `alt`, or explicit decorative marking. | error | yes |
+| `viewport-meta` | Full documents should include a responsive `<meta name="viewport">`. | warning | yes |
+| `link-rel-noopener` | `target="_blank"` links need `rel="noopener"`. | warning | yes |
+| `form-label` | Every `<input>`/`<select>`/`<textarea>` needs a label, aria-label, or wrapping `<label>`. | error | no |
+| `duplicate-id` | `id` attributes must be unique per document. | error | no |
+| `responsive-images` | Flags `<img>` missing `srcset` or `loading="lazy"` hints. | info | no |
 
-## Custom Configuration
+All rules read both inline `style="..."` attributes **and** declarations from `<style>` blocks inside the same document. Simple class/id/tag selectors are supported; descendant combinators and pseudo-classes are ignored.
 
-```typescript
-const linter = new DesignLinter({
-  rules: {
-    colorContrast: { enabled: true, severity: "error", minRatio: 7.0 }, // AAA
-    fontSizeMinimum: { enabled: true, severity: "error", minPx: 14 },
-    spacingConsistency: { enabled: false, severity: "info", baseUnit: 8 },
-  },
-});
+## Configuration
+
+Pass a JSON file with `--config`:
+
+```json
+{
+  "rules": {
+    "colorContrast": { "enabled": true, "severity": "error", "minRatio": 4.5, "minRatioLarge": 3.0 },
+    "spacingConsistency": { "enabled": true, "severity": "info", "baseUnit": 8 },
+    "responsiveImages": { "enabled": false, "severity": "off" }
+  }
+}
 ```
+
+Every rule accepts `enabled` (boolean) and `severity` (`error | warning | info | off`). Rule-specific knobs are listed in the rules table above.
+
+## Output formats
+
+- **`text`** (default) — human-readable, colorized for TTY, clustered per file.
+- **`json`** — structured results for piping into other tools.
+- **`sarif`** — SARIF 2.1.0; upload to GitHub Code Scanning for inline PR annotations and Security tab surface.
+- **`github`** — `::error`/`::warning`/`::notice` workflow commands. GitHub Actions turns these into inline PR file annotations.
+
+## Architecture
+
+```
+HTML input
+  -> parse5 (with source locations)     -> DOM
+  -> css-tree (<style> + inline)        -> property maps
+    for each element:
+      effective style = <style>-block decls + inline style (inline wins)
+      each rule walks elements + reports LintIssue[] (with optional Fix offsets)
+  -> scorer + formatter
+```
+
+parse5 gives us byte offsets for every open tag, which is what makes autofixes safe: we splice replacements at known-good positions, never regex-rewrite.
 
 ## Development
 
 ```bash
-make install   # Install dependencies
-make build     # Compile TypeScript
-make test      # Run tests
-make lint      # Type-check
+npm install
+npm run build
+npm test
+npm run dev       # tsc --watch
 ```
 
-## Contributing
+Run the CLI from source without building:
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+```bash
+npx tsx src/cli.ts examples/dirty.html
+```
 
 ## License
 
-[MIT](./LICENSE) - Copyright 2026 Officethree Technologies
-
----
-
-Built by **Officethree Technologies** | Made with ❤️ and AI
+MIT

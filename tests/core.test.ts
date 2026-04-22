@@ -1,93 +1,140 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
 import { DesignLinter } from "../src/core.js";
-import { hexToRGB, contrastRatio, parseCSSSize } from "../src/utils.js";
+import { applyFixes } from "../src/fix.js";
 
-describe("DesignLinter", () => {
-  const linter = new DesignLinter();
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const fixture = (name: string) => readFileSync(resolve(__dirname, "fixtures", name), "utf8");
 
-  it("should detect missing alt text on images", () => {
-    const html = `<img src="hero.png"><img src="logo.png" alt="">`;
-    const report = linter.lint(html);
-    const altIssues = report.issues.filter((i) => i.id === "image-alt-text");
-    assert.equal(altIssues.length, 2, "Should flag both images without meaningful alt");
-    assert.equal(altIssues[0].severity, "error");
-  });
-
-  it("should detect low color contrast", () => {
-    // light gray text on white background — ratio ~1.07:1
-    const html = `<p style="color: #eeeeee; background-color: #ffffff">Low contrast</p>`;
-    const report = linter.lint(html);
-    const contrastIssues = report.issues.filter((i) => i.id === "color-contrast");
-    assert.equal(contrastIssues.length, 1);
-    assert.equal(contrastIssues[0].severity, "error");
-  });
-
-  it("should detect heading hierarchy violations", () => {
-    const html = `<h1>Title</h1><h3>Subsection</h3>`;
-    const report = linter.lint(html);
-    const headingIssues = report.issues.filter((i) => i.id === "heading-hierarchy");
-    assert.equal(headingIssues.length, 1);
-    assert.ok(headingIssues[0].message.includes("skips level"));
-  });
-
-  it("should detect missing viewport meta in full documents", () => {
-    const html = `<html><head><title>Test</title></head><body></body></html>`;
-    const report = linter.lint(html);
-    const vpIssues = report.issues.filter((i) => i.id === "viewport-meta");
-    assert.equal(vpIssues.length, 1);
-  });
-
-  it("should detect font size below minimum", () => {
-    const html = `<span style="font-size: 10px">Tiny text</span>`;
-    const report = linter.lint(html);
-    const fontIssues = report.issues.filter((i) => i.id === "font-size-minimum");
-    assert.equal(fontIssues.length, 1);
-    assert.ok(fontIssues[0].message.includes("10px"));
-  });
-
-  it("should return a perfect score for clean HTML", () => {
-    const html = `<img src="photo.jpg" alt="A sunset over the ocean">`;
-    const report = linter.lint(html);
-    assert.equal(report.issues.length, 0);
+describe("DesignLinter - fixtures", () => {
+  it("clean.html produces no issues and score 100", () => {
+    const report = new DesignLinter().lint(fixture("clean.html"));
+    assert.deepEqual(report.issues, []);
     assert.equal(report.score, 100);
   });
 
-  it("should detect small button touch targets", () => {
-    const html = `<button style="width: 30px; height: 30px">X</button>`;
-    const report = linter.lint(html);
-    const btnIssues = report.issues.filter((i) => i.id === "button-size");
-    assert.ok(btnIssues.length >= 1, "Should flag small button");
+  it("dirty.html flags every target rule", () => {
+    const report = new DesignLinter().lint(fixture("dirty.html"));
+    const ids = new Set(report.issues.map((i) => i.id));
+    for (const expected of [
+      "color-contrast",
+      "font-size-minimum",
+      "heading-hierarchy",
+      "image-alt-text",
+      "link-rel-noopener",
+      "form-label",
+      "button-size",
+      "duplicate-id",
+      "spacing-consistency",
+    ]) {
+      assert.ok(ids.has(expected), `expected ${expected} to be reported`);
+    }
+    assert.ok(report.score < 50, `score should reflect many issues, got ${report.score}`);
   });
 
-  it("should respect custom rule configuration", () => {
-    const custom = new DesignLinter({
-      rules: { imageAltText: { enabled: false, severity: "error" } } as any,
-    });
-    const html = `<img src="test.png">`;
-    const report = custom.lint(html);
-    const altIssues = report.issues.filter((i) => i.id === "image-alt-text");
-    assert.equal(altIssues.length, 0, "Disabled rule should not produce issues");
+  it("style-block.html detects issues from <style> rules", () => {
+    const report = new DesignLinter().lint(fixture("style-block.html"));
+    const ids = report.issues.map((i) => i.id);
+    assert.ok(ids.includes("color-contrast"));
+    assert.ok(ids.includes("font-size-minimum"));
+    assert.ok(ids.includes("button-size"));
   });
 });
 
-describe("Utils", () => {
-  it("should parse hex colors correctly", () => {
-    const white = hexToRGB("#fff")!;
-    assert.deepEqual(white, { r: 255, g: 255, b: 255 });
-    const black = hexToRGB("#000000")!;
-    assert.deepEqual(black, { r: 0, g: 0, b: 0 });
+describe("DesignLinter - rules", () => {
+  it("does not flag images marked decorative via role", () => {
+    const html = `<img src="bg.png" role="presentation">`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "image-alt-text").length, 0);
   });
 
-  it("should calculate contrast ratio for black on white", () => {
-    const ratio = contrastRatio({ r: 0, g: 0, b: 0 }, { r: 255, g: 255, b: 255 });
-    assert.ok(ratio > 20, `Expected ratio > 20, got ${ratio}`);
+  it("does not flag aria-hidden images", () => {
+    const html = `<img src="bg.png" aria-hidden="true">`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "image-alt-text").length, 0);
   });
 
-  it("should parse CSS sizes", () => {
-    assert.equal(parseCSSSize("16px"), 16);
-    assert.equal(parseCSSSize("1rem"), 16);
-    assert.equal(parseCSSSize("0.75em"), 12);
-    assert.equal(parseCSSSize("12pt"), 16);
+  it("accepts label via aria-label", () => {
+    const html = `<input type="text" aria-label="Search">`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "form-label").length, 0);
+  });
+
+  it("accepts label wrapping input", () => {
+    const html = `<label>Email <input type="email"></label>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "form-label").length, 0);
+  });
+
+  it("accepts rel=noreferrer alone on target=_blank", () => {
+    const html = `<a href="x" target="_blank" rel="noreferrer">x</a>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "link-rel-noopener").length, 0);
+  });
+
+  it("uses large-text contrast threshold for bold/large text", () => {
+    const html = `<p style="color: #767676; background-color: #fff; font-size: 20px; font-weight: 700">Bold, large, low-ish.</p>`;
+    const report = new DesignLinter().lint(html);
+    const contrastIssues = report.issues.filter((i) => i.id === "color-contrast");
+    assert.equal(contrastIssues.length, 0, "#767676 on #fff passes AA large-text");
+  });
+
+  it("respects alpha in rgba color contrast", () => {
+    const html = `<p style="color: rgba(0, 0, 0, 0.2); background-color: #fff">Faint.</p>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "color-contrast"));
+  });
+
+  it("disables rule when severity is off", () => {
+    const html = `<img src="x.png">`;
+    const linter = new DesignLinter({
+      rules: { imageAltText: { enabled: true, severity: "off" } },
+    });
+    const report = linter.lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "image-alt-text").length, 0);
+  });
+});
+
+describe("Autofix", () => {
+  it("adds alt='' role='presentation' on bare <img>", () => {
+    const html = `<img src="a.png">`;
+    const { issues } = new DesignLinter().lint(html);
+    const { output, appliedCount } = applyFixes(html, issues);
+    assert.ok(output.includes(`alt=""`) && output.includes(`role="presentation"`));
+    assert.equal(appliedCount, 1);
+  });
+
+  it("inserts viewport meta in full documents", () => {
+    const html = `<!doctype html><html><head><title>T</title></head><body></body></html>`;
+    const { issues } = new DesignLinter().lint(html);
+    const { output } = applyFixes(html, issues);
+    assert.ok(output.includes(`name="viewport"`));
+  });
+
+  it("adds rel='noopener noreferrer' to target=_blank without rel", () => {
+    const html = `<a href="x" target="_blank">x</a>`;
+    const { issues } = new DesignLinter().lint(html);
+    const { output } = applyFixes(html, issues);
+    assert.ok(output.includes(`rel="noopener noreferrer"`));
+  });
+
+  it("extends existing rel attribute without clobbering", () => {
+    const html = `<a href="x" target="_blank" rel="nofollow">x</a>`;
+    const { issues } = new DesignLinter().lint(html);
+    const { output } = applyFixes(html, issues);
+    assert.ok(output.includes(`rel="nofollow noopener noreferrer"`));
+  });
+
+  it("running autofix twice is idempotent (no new fixes)", () => {
+    const html = `<img src="a.png">`;
+    const linter = new DesignLinter();
+    const first = applyFixes(html, linter.lint(html).issues).output;
+    const second = applyFixes(first, linter.lint(first).issues);
+    assert.equal(second.appliedCount, 0);
+    assert.equal(first, second.output);
   });
 });

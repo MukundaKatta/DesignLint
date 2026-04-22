@@ -1,0 +1,57 @@
+name: DesignLint
+description: Accessibility and design linter for HTML/CSS. Emits GitHub annotations and SARIF for Code Scanning.
+author: Mukunda Katta
+branding:
+  icon: check-square
+  color: purple
+inputs:
+  paths:
+    description: Globs of files to lint, space-separated.
+    default: "**/*.html **/*.htm"
+    required: false
+  config:
+    description: Path to a designlint.config.json file.
+    required: false
+    default: ""
+  fail-on:
+    description: Exit nonzero on this severity and above (error, warning, info, never).
+    default: error
+    required: false
+  sarif-output:
+    description: Path to write SARIF 2.1.0 output.
+    default: designlint.sarif
+    required: false
+  version:
+    description: designlint npm version to install (default latest).
+    default: latest
+    required: false
+outputs:
+  sarif-path:
+    description: Path to the generated SARIF file.
+    value: ${{ steps.designlint.outputs.sarif-path }}
+runs:
+  using: composite
+  steps:
+    - name: Install designlint
+      shell: bash
+      run: npm install -g designlint@${{ inputs.version }}
+    - name: Run designlint (annotations)
+      shell: bash
+      run: |
+        designlint ${{ inputs.paths }} \
+          --format github \
+          ${{ inputs.config && format('--config {0}', inputs.config) || '' }} \
+          --fail-on never || true
+    - name: Run designlint (SARIF)
+      id: designlint
+      shell: bash
+      run: |
+        set +e
+        designlint ${{ inputs.paths }} \
+          --format sarif \
+          ${{ inputs.config && format('--config {0}', inputs.config) || '' }} \
+          --fail-on ${{ inputs.fail-on }} \
+          --output ${{ inputs.sarif-output }}
+        code=$?
+        echo "sarif-path=${{ inputs.sarif-output }}" >> "$GITHUB_OUTPUT"
+        exit $code

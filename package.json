@@ -1,36 +1,73 @@
 {
   "name": "designlint",
-  "version": "0.1.0",
-  "description": "UI/UX design linter \u2014 check HTML/CSS for accessibility, contrast, spacing, and design best practices",
+  "version": "0.2.0",
+  "description": "UI/UX design linter for HTML/CSS: accessibility, contrast, spacing, touch targets, and responsive design.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "bin": {
+    "designlint": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./cli": {
+      "import": "./dist/cli.js"
+    }
+  },
   "scripts": {
-    "build": "tsc",
-    "test": "tsx --test tests/core.test.ts",
-    "lint": "tsc --noEmit"
+    "build": "tsc && chmod +x dist/cli.js",
+    "dev": "tsc -w",
+    "test": "tsx --test tests/**/*.test.ts",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm test"
   },
   "keywords": [
     "design",
     "lint",
+    "linter",
     "accessibility",
+    "a11y",
     "wcag",
     "contrast",
     "ui",
     "ux",
     "html",
-    "css"
+    "css",
+    "cli",
+    "github-action"
   ],
-  "author": "Officethree Technologies",
+  "author": "Mukunda Katta",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MukundaKatta/DesignLint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MukundaKatta/DesignLint/issues"
+  },
+  "homepage": "https://github.com/MukundaKatta/DesignLint#readme",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "css-tree": "^3.0.0",
+    "globby": "^14.0.2",
+    "parse5": "^7.2.1",
+    "picocolors": "^1.1.1"
+  },
   "devDependencies": {
-    "tsx": "^4.7.0",
-    "typescript": "^5.4.0"
+    "@types/css-tree": "^2.3.10",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   },
   "engines": {
     "node": ">=18"
   },
   "files": [
     "dist",
+    "action.yml",
     "README.md",
     "LICENSE"
   ]
