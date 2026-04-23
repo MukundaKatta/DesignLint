@@ -22,6 +22,8 @@ export interface RuleConfigs {
   formLabel: BaseRuleConfig;
   duplicateId: BaseRuleConfig;
   responsiveImages: BaseRuleConfig;
+  htmlHasLang: BaseRuleConfig;
+  pageTitle: BaseRuleConfig;
 }
 
 export interface DesignLintConfig {
@@ -79,6 +81,14 @@ export const DEFAULT_CONFIG: DesignLintConfig = {
     responsiveImages: {
       enabled: true,
       severity: "info",
+    },
+    htmlHasLang: {
+      enabled: true,
+      severity: "error",
+    },
+    pageTitle: {
+      enabled: true,
+      severity: "warning",
     },
   },
 };

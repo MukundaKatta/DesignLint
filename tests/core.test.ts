@@ -99,7 +99,90 @@ describe("DesignLinter - rules", () => {
   });
 });
 
+describe("DesignLinter - new rules", () => {
+  it("html-has-lang fires on <html> without lang", () => {
+    const html = `<!doctype html><html><head><title>T</title></head><body></body></html>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "html-has-lang"));
+  });
+
+  it("html-has-lang quiet with lang='en'", () => {
+    const html = `<!doctype html><html lang="en"><head><title>T</title></head><body></body></html>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "html-has-lang").length, 0);
+  });
+
+  it("html-has-lang accepts xml:lang fallback", () => {
+    const html = `<!doctype html><html xml:lang="fr"><head><title>T</title></head><body></body></html>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "html-has-lang").length, 0);
+  });
+
+  it("page-title fires when <title> is empty", () => {
+    const html = `<!doctype html><html lang="en"><head><title>   </title></head><body></body></html>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "page-title"));
+  });
+
+  it("page-title fires when <title> is missing", () => {
+    const html = `<!doctype html><html lang="en"><head></head><body></body></html>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "page-title"));
+  });
+
+  it("viewport-meta flags user-scalable=no", () => {
+    const html = `<!doctype html><html lang="en"><head><title>T</title><meta name="viewport" content="width=device-width, user-scalable=no"></head><body></body></html>`;
+    const report = new DesignLinter().lint(html);
+    const vp = report.issues.filter((i) => i.id === "viewport-meta");
+    assert.ok(vp.length > 0 && vp.some((i) => /user-scalable/.test(i.message)));
+  });
+
+  it("viewport-meta flags maximum-scale=1", () => {
+    const html = `<!doctype html><html lang="en"><head><title>T</title><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></head><body></body></html>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "viewport-meta" && /maximum-scale/.test(i.message)));
+  });
+
+  it("image-alt-text flags <input type=image> with no alt", () => {
+    const html = `<input type="image" src="go.png">`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "image-alt-text"));
+  });
+
+  it("image-alt-text flags junk alt (filename-like)", () => {
+    const html = `<img src="hero.png" alt="hero.png">`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "image-alt-text"));
+  });
+
+  it("image-alt-text flags generic alt 'image'", () => {
+    const html = `<img src="a.png" alt="image">`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "image-alt-text"));
+  });
+
+  it("image-alt-text quiet with descriptive alt", () => {
+    const html = `<img src="hero.png" alt="Sunset over the Grand Canyon">`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "image-alt-text").length, 0);
+  });
+
+  it("image-alt-text accepts aria-label in place of alt", () => {
+    const html = `<img src="go.png" aria-label="Start tour">`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "image-alt-text").length, 0);
+  });
+});
+
 describe("Autofix", () => {
+  it("inserts lang='en' on <html> without lang", () => {
+    const html = `<!doctype html><html><head><title>T</title></head><body></body></html>`;
+    const { issues } = new DesignLinter().lint(html);
+    const { output } = applyFixes(html, issues);
+    assert.ok(/<html\s+lang="en">/.test(output), `expected lang inserted, got: ${output}`);
+  });
+
+
   it("adds alt='' role='presentation' on bare <img>", () => {
     const html = `<img src="a.png">`;
     const { issues } = new DesignLinter().lint(html);

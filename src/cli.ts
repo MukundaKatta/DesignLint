@@ -17,11 +17,12 @@ import pc from "picocolors";
 
 import { DesignLinter } from "./core.js";
 import { applyFixes } from "./fix.js";
-import { mergeConfig, type DesignLintConfig } from "./config.js";
+import { mergeConfig, DEFAULT_CONFIG, type DesignLintConfig } from "./config.js";
 import { formatText } from "./formatters/text.js";
 import { formatJson } from "./formatters/json.js";
 import { formatSarif } from "./formatters/sarif.js";
 import { formatGithub } from "./formatters/github.js";
+import { RULE_META } from "./rules/index.js";
 import type { LintReport } from "./rules/types.js";
 
 type OutputFormat = "text" | "json" | "sarif" | "github";
@@ -39,20 +40,47 @@ async function main(): Promise<void> {
   const program = new Command()
     .name("designlint")
     .description("UI/UX design linter for HTML/CSS (accessibility, contrast, spacing, touch targets).")
-    .argument("<inputs...>", "files, globs, or URLs")
+    .argument("[inputs...]", "files, globs, or URLs")
     .option("-c, --config <path>", "JSON config file (see README for schema)")
     .option("-f, --format <type>", "output format: text | json | sarif | github", "text")
     .option("--fix", "apply autofixes in place", false)
     .option("--fail-on <level>", "exit nonzero when issues meet this severity: error|warning|info|never", "error")
     .option("--rule <id...>", "run only the specified rule IDs")
     .option("-o, --output <path>", "write output to a file instead of stdout")
+    .option("--list-rules", "print all available rule IDs and exit")
     .version(readPackageVersion(), "-v, --version")
-    .parse(process.argv);
+    .action(async (rawInputs: string[], opts: CliOptions & { listRules?: boolean }) => {
+      await runLint(rawInputs, opts);
+    });
 
-  const rawInputs = program.args;
-  const opts = program.opts<CliOptions>();
+  program
+    .command("init")
+    .description("Write a default .designlintrc.json in the current directory (or at <path>)")
+    .argument("[path]", "destination file", ".designlintrc.json")
+    .option("--force", "overwrite if the file already exists", false)
+    .action(async (path: string, opts: { force?: boolean }) => {
+      await runInit(path, opts.force === true);
+    });
+
+  await program.parseAsync(process.argv);
+}
+
+async function runLint(
+  rawInputs: string[],
+  opts: CliOptions & { listRules?: boolean }
+): Promise<void> {
+  if (opts.listRules) {
+    printRuleList();
+    process.exit(0);
+  }
+
   const config = await loadConfig(opts.config);
   const results: Array<{ file?: string; source: string; report: LintReport }> = [];
+
+  if (rawInputs.length === 0) {
+    console.error(pc.red("No inputs provided. See: designlint --help"));
+    process.exit(2);
+  }
 
   const files = await expandInputs(rawInputs);
   if (files.length === 0) {
@@ -169,6 +197,33 @@ function computeExitCode(
     }
   }
   return 0;
+}
+
+async function runInit(targetPath: string, force: boolean): Promise<void> {
+  const { stat } = await import("node:fs/promises");
+  try {
+    await stat(targetPath);
+    if (!force) {
+      console.error(
+        pc.red(`Refusing to overwrite ${targetPath}. Pass --force to replace it.`)
+      );
+      process.exit(2);
+    }
+  } catch {
+    // File doesn't exist; proceed.
+  }
+  const json = JSON.stringify(DEFAULT_CONFIG, null, 2) + "\n";
+  await writeFile(targetPath, json, "utf8");
+  console.error(pc.green(`Wrote default config to ${targetPath}`));
+  process.exit(0);
+}
+
+function printRuleList(): void {
+  const pad = Math.max(...RULE_META.map((r) => r.id.length));
+  for (const rule of RULE_META) {
+    const sev = DEFAULT_CONFIG.rules[rule.key].severity;
+    console.log(`${rule.id.padEnd(pad)}  ${pc.dim(sev.padEnd(7))}  ${rule.summary}`);
+  }
 }
 
 function readPackageVersion(): string {
