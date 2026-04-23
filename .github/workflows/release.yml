@@ -1,0 +1,59 @@
+name: Release on tag
+
+on:
+  push:
+    # Only semver tags: `v1.2.3`, `v1.2.3-rc.1`, etc. Floating tags like
+    # `v1` / `v2` (used by GitHub Actions for major-version pinning) are
+    # intentionally skipped so moving them doesn't cut a duplicate release.
+    tags: ["v[0-9]+.[0-9]+.[0-9]+", "v[0-9]+.[0-9]+.[0-9]+-*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install + build + test
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+          npm test
+
+      - name: Extract CHANGELOG entry for this tag
+        id: notes
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VER="${TAG#v}"
+          # State-machine awk, not a range pattern: the bracket-containing
+          # heading `## [1.2.3]` would be read as a regex character class
+          # by `~`, silently matching nothing. `index()` does a plain
+          # substring check instead.
+          awk -v ver="$VER" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]") > 0) { found=1; next }
+            }
+            found { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "(No CHANGELOG entry found for $TAG; using auto-notes.)" > RELEASE_NOTES.md
+          fi
+          echo "body_path=RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file "${{ steps.notes.outputs.body_path }}" \
+            --verify-tag

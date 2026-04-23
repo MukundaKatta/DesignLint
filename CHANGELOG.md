@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format loosely follows [Keep a Changelog](https://keepachangelog.com/),
 and versions use [SemVer](https://semver.org/).
 
+## [0.4.0] - 2026-04-22
+
+### Added
+- `label-for-valid` rule: `<label for="id">` must point at a real form
+  control. Catches typos, orphan labels after refactors, and duplicate
+  labels pointing at the same id.
+- `iframe-title` rule: `<iframe>` needs a `title` (or `aria-label`) so
+  screen readers can announce it.
+- CLI: `-q` / `--quiet` suppresses warnings and info, showing only errors.
+- CLI: config auto-discovery — if `--config` isn't set, walks up from cwd
+  looking for `.designlintrc.json`. Falls back to defaults if none found.
+- CI: release workflow (`.github/workflows/release.yml`) that cuts a GitHub
+  release from the `CHANGELOG.md` entry when a `vX.Y.Z` tag is pushed.
+
 ## [0.3.0] - 2026-04-22
 
 ### Added

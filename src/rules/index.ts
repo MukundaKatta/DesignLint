@@ -14,6 +14,8 @@ import { htmlHasLang } from "./html-has-lang.js";
 import { pageTitle } from "./page-title.js";
 import { emptyHeading } from "./empty-heading.js";
 import { buttonType } from "./button-type.js";
+import { labelForValid } from "./label-for-valid.js";
+import { iframeTitle } from "./iframe-title.js";
 
 export const ALL_RULES: Rule[] = [
   colorContrast,
@@ -31,6 +33,8 @@ export const ALL_RULES: Rule[] = [
   pageTitle,
   emptyHeading,
   buttonType,
+  labelForValid,
+  iframeTitle,
 ];
 
 export const RULE_META: Array<{ id: string; key: keyof import("../config.js").RuleConfigs; summary: string }> = [
@@ -49,6 +53,8 @@ export const RULE_META: Array<{ id: string; key: keyof import("../config.js").Ru
   { id: "page-title", key: "pageTitle", summary: "Full documents need a non-empty <title>." },
   { id: "empty-heading", key: "emptyHeading", summary: "Headings must contain screen-reader-accessible text." },
   { id: "button-type", key: "buttonType", summary: "<button> in a <form> must set type= to avoid accidental submit." },
+  { id: "label-for-valid", key: "labelForValid", summary: "<label for=id> must point at a real form control." },
+  { id: "iframe-title", key: "iframeTitle", summary: "<iframe> needs a title or aria-label for screen readers." },
 ];
 
 export * from "./types.js";

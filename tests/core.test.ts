@@ -272,6 +272,58 @@ describe("button-type", () => {
   });
 });
 
+describe("label-for-valid", () => {
+  it("flags <label for=id> pointing at nothing", () => {
+    const html = `<label for="nope">Email</label>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "label-for-valid"));
+  });
+
+  it("flags <label for=id> pointing at a non-form element", () => {
+    const html = `<label for="hdr">Title</label><h2 id="hdr">Hi</h2>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "label-for-valid"));
+  });
+
+  it("quiet when <label for=id> points at a real input", () => {
+    const html = `<label for="email">Email</label><input id="email" type="email">`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "label-for-valid").length, 0);
+  });
+
+  it("flags duplicate labels for the same id", () => {
+    const html = `<label for="x">A</label><label for="x">B</label><input id="x">`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "label-for-valid" && /Multiple/.test(i.message)));
+  });
+});
+
+describe("iframe-title", () => {
+  it("flags iframe without title", () => {
+    const html = `<iframe src="https://example.com"></iframe>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "iframe-title"));
+  });
+
+  it("quiet with title", () => {
+    const html = `<iframe src="x" title="Demo"></iframe>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "iframe-title").length, 0);
+  });
+
+  it("quiet with aria-label", () => {
+    const html = `<iframe src="x" aria-label="Demo"></iframe>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "iframe-title").length, 0);
+  });
+
+  it("quiet when aria-hidden=true", () => {
+    const html = `<iframe src="x" aria-hidden="true"></iframe>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "iframe-title").length, 0);
+  });
+});
+
 describe("Autofix", () => {
   it("inserts lang='en' on <html> without lang", () => {
     const html = `<!doctype html><html><head><title>T</title></head><body></body></html>`;

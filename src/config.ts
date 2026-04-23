@@ -26,6 +26,8 @@ export interface RuleConfigs {
   pageTitle: BaseRuleConfig;
   emptyHeading: BaseRuleConfig;
   buttonType: BaseRuleConfig;
+  labelForValid: BaseRuleConfig;
+  iframeTitle: BaseRuleConfig;
 }
 
 export interface DesignLintConfig {
@@ -97,6 +99,14 @@ export const DEFAULT_CONFIG: DesignLintConfig = {
       severity: "warning",
     },
     buttonType: {
+      enabled: true,
+      severity: "warning",
+    },
+    labelForValid: {
+      enabled: true,
+      severity: "error",
+    },
+    iframeTitle: {
       enabled: true,
       severity: "warning",
     },

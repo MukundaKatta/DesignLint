@@ -53,8 +53,13 @@ designlint '<inputs...>' [options]
 | `--config <path>` | JSON config file |
 | `--fail-on error\|warning\|info\|never` | Exit nonzero threshold (default `error`) |
 | `--output <path>` | Write output to a file |
+| `-q`, `--quiet` | Only report errors (suppress warnings and info) |
 | `--list-rules` | List every rule with its default severity and summary |
 | `-v`, `--version` | Print version |
+
+When `--config` is not passed, DesignLint walks up from the current
+directory looking for `.designlintrc.json` (the first one found wins). If
+nothing is found, defaults are used.
 
 Scaffold a config with every rule at its default:
 
@@ -89,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: MukundaKatta/DesignLint@v0.3.0
+      - uses: MukundaKatta/DesignLint@v0.4.0
         with:
           paths: 'src/**/*.html'
           fail-on: error
@@ -142,7 +147,9 @@ const { output, appliedCount } = applyFixes(html, report.issues);
 | `viewport-meta` | Responsive `<meta name="viewport">` present, with no zoom lockout (`user-scalable=no`, `maximum-scale<=1`). | warning | yes |
 | `link-rel-noopener` | `target="_blank"` links need `rel="noopener"`. | warning | yes |
 | `form-label` | Every `<input>`/`<select>`/`<textarea>` needs a label, aria-label, or wrapping `<label>`. | error | no |
+| `label-for-valid` | `<label for=id>` must point at a real form control; duplicates flagged. | error | no |
 | `button-type` | `<button>` inside `<form>` must set `type=` (defaults to submit, a common footgun). | warning | yes |
+| `iframe-title` | `<iframe>` needs a `title` (or `aria-label`) so screen readers can announce it. | warning | no |
 | `duplicate-id` | `id` attributes must be unique per document. | error | no |
 | `responsive-images` | Flags `<img>` missing `srcset` or `loading="lazy"` hints. | info | no |
 | `html-has-lang` | `<html>` must declare a `lang` attribute. | error | yes |

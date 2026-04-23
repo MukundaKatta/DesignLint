@@ -34,6 +34,7 @@ interface CliOptions {
   failOn: "error" | "warning" | "info" | "never";
   rule?: string[];
   output?: string;
+  quiet?: boolean;
 }
 
 async function main(): Promise<void> {
@@ -47,6 +48,7 @@ async function main(): Promise<void> {
     .option("--fail-on <level>", "exit nonzero when issues meet this severity: error|warning|info|never", "error")
     .option("--rule <id...>", "run only the specified rule IDs")
     .option("-o, --output <path>", "write output to a file instead of stdout")
+    .option("-q, --quiet", "only report errors; suppress warnings and info", false)
     .option("--list-rules", "print all available rule IDs and exit")
     .version(readPackageVersion(), "-v, --version")
     .action(async (rawInputs: string[], opts: CliOptions & { listRules?: boolean }) => {
@@ -92,6 +94,10 @@ async function runLint(
 
   for (const { name, source } of files) {
     const report = linter.lint(source);
+    if (opts.quiet) {
+      report.issues = report.issues.filter((i) => i.severity === "error");
+      report.summary = summarizeFiltered(report.issues);
+    }
     results.push({ file: name, source, report });
   }
 
@@ -134,9 +140,35 @@ function kebabToCamel(s: string): string {
 }
 
 async function loadConfig(path: string | undefined): Promise<DesignLintConfig> {
-  if (!path) return mergeConfig(undefined);
-  const raw = await readFile(path, "utf8");
+  const resolvedPath = path ?? (await findConfigFile());
+  if (!resolvedPath) return mergeConfig(undefined);
+  const raw = await readFile(resolvedPath, "utf8");
   return mergeConfig(JSON.parse(raw) as Partial<DesignLintConfig>);
+}
+
+/**
+ * Walk up from cwd looking for the first .designlintrc.json. Stops at the
+ * filesystem root. Returns undefined if none is found, in which case the
+ * linter runs with defaults.
+ */
+async function findConfigFile(): Promise<string | undefined> {
+  const { stat } = await import("node:fs/promises");
+  const { resolve, dirname } = await import("node:path");
+  let dir = process.cwd();
+  // Hard stop after 20 levels to avoid runaway walks on weird mount points.
+  for (let i = 0; i < 20; i++) {
+    const candidate = resolve(dir, ".designlintrc.json");
+    try {
+      await stat(candidate);
+      return candidate;
+    } catch {
+      // Not in this dir; keep walking up.
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return undefined;
+    dir = parent;
+  }
+  return undefined;
 }
 
 async function expandInputs(inputs: string[]): Promise<Array<{ name: string; source: string }>> {
@@ -181,6 +213,11 @@ function format(
     default:
       return results.map((r) => formatText(r.report, r.file)).join("\n\n");
   }
+}
+
+function summarizeFiltered(issues: LintReport["issues"]): string {
+  if (issues.length === 0) return "No errors found.";
+  return `${issues.length} error${issues.length > 1 ? "s" : ""}.`;
 }
 
 function computeExitCode(
