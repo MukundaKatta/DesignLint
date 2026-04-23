@@ -28,13 +28,13 @@ index.html
 ## Install
 
 ```bash
-npm install -g designlint
+npm install -g @mukundakatta/designlint
 ```
 
 Or one-off without installing:
 
 ```bash
-npx designlint path/to/page.html
+npx @mukundakatta/designlint path/to/page.html
 ```
 
 ## Usage

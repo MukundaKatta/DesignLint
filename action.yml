@@ -22,7 +22,7 @@ inputs:
     default: designlint.sarif
     required: false
   version:
-    description: designlint npm version to install (default latest).
+    description: npm version of @mukundakatta/designlint to install (default latest).
     default: latest
     required: false
 outputs:
@@ -34,7 +34,7 @@ runs:
   steps:
     - name: Install designlint
       shell: bash
-      run: npm install -g designlint@${{ inputs.version }}
+      run: npm install -g @mukundakatta/designlint@${{ inputs.version }}
     - name: Run designlint (annotations)
       shell: bash
       run: |

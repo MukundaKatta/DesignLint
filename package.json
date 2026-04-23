@@ -1,5 +1,5 @@
 {
-  "name": "designlint",
+  "name": "@mukundakatta/designlint",
   "version": "0.2.0",
   "description": "UI/UX design linter for HTML/CSS: accessibility, contrast, spacing, touch targets, and responsive design.",
   "main": "dist/index.js",
