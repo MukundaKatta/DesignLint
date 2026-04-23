@@ -174,6 +174,104 @@ describe("DesignLinter - new rules", () => {
   });
 });
 
+describe("color-contrast - ancestor resolution", () => {
+  it("resolves background from ancestor when not set on the element itself", () => {
+    const html = `<div style="background-color: #333"><p style="color: #555">hi</p></div>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(
+      report.issues.some((i) => i.id === "color-contrast"),
+      "should flag dark text on dark background even though bg is on parent"
+    );
+  });
+
+  it("does not fire when author never sets color", () => {
+    const html = `<div style="background-color: #000"><p>no color set</p></div>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(
+      report.issues.filter((i) => i.id === "color-contrast").length,
+      0,
+      "author didn't declare a color — not their bug"
+    );
+  });
+
+  it("falls back to white background when no ancestor sets one", () => {
+    const html = `<p style="color: #ccc">light on default</p>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "color-contrast"));
+  });
+});
+
+describe("empty-heading", () => {
+  it("flags <h2></h2>", () => {
+    const html = `<h2></h2>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "empty-heading"));
+  });
+
+  it("flags <h2>   </h2> (whitespace only)", () => {
+    const html = `<h2>   </h2>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "empty-heading"));
+  });
+
+  it("flags <h2> wrapping image with no alt", () => {
+    const html = `<h2><img src="logo.png"></h2>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "empty-heading"));
+  });
+
+  it("quiet on <h2> wrapping image with alt", () => {
+    const html = `<h2><img src="logo.png" alt="Acme Corp"></h2>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "empty-heading").length, 0);
+  });
+
+  it("quiet when aria-label is set on the heading itself", () => {
+    const html = `<h2 aria-label="Section title"></h2>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "empty-heading").length, 0);
+  });
+
+  it("quiet with normal text content", () => {
+    const html = `<h2>About Us</h2>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "empty-heading").length, 0);
+  });
+});
+
+describe("button-type", () => {
+  it("flags <button> inside <form> without type", () => {
+    const html = `<form><button>Click</button></form>`;
+    const report = new DesignLinter().lint(html);
+    assert.ok(report.issues.some((i) => i.id === "button-type"));
+  });
+
+  it("quiet with type=button", () => {
+    const html = `<form><button type="button">Click</button></form>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "button-type").length, 0);
+  });
+
+  it("quiet with type=submit (explicit is fine)", () => {
+    const html = `<form><button type="submit">Submit</button></form>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "button-type").length, 0);
+  });
+
+  it("quiet outside <form>", () => {
+    const html = `<div><button>Click</button></div>`;
+    const report = new DesignLinter().lint(html);
+    assert.equal(report.issues.filter((i) => i.id === "button-type").length, 0);
+  });
+
+  it("autofix inserts type='button'", () => {
+    const html = `<form><button>Click</button></form>`;
+    const { issues } = new DesignLinter().lint(html);
+    const { output } = applyFixes(html, issues);
+    assert.ok(/<button\s+type="button">/.test(output), `expected type inserted, got: ${output}`);
+  });
+});
+
 describe("Autofix", () => {
   it("inserts lang='en' on <html> without lang", () => {
     const html = `<!doctype html><html><head><title>T</title></head><body></body></html>`;

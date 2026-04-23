@@ -1,7 +1,27 @@
 import { ruleEnabled } from "../config.js";
 import type { Rule } from "./types.js";
-import { walkElements, effectiveStyle, renderOpenTag, elementLine } from "../parse.js";
+import {
+  walkElements,
+  effectiveStyle,
+  renderOpenTag,
+  elementLine,
+  resolveBackground,
+  resolveColor,
+} from "../parse.js";
 import { parseColor, contrastRatio, parseCSSSize } from "../utils.js";
+
+/**
+ * WCAG AA contrast checker.
+ *
+ * Resolves both `color` and `background-color` up the ancestor chain, since
+ * CSS inheritance and background painting don't stop at the element under
+ * test. Without this, the rule only fires when both properties happen to be
+ * set on the same element — which is rare in real stylesheets.
+ *
+ * If no ancestor sets a solid background, we fall back to white, matching the
+ * browser default that users ultimately see.
+ */
+const DEFAULT_BG = "#ffffff";
 
 export const colorContrast: Rule = (ctx) => {
   const rule = ctx.config.rules.colorContrast;
@@ -10,20 +30,25 @@ export const colorContrast: Rule = (ctx) => {
   const issues = [] as ReturnType<Rule>;
 
   for (const el of walkElements(ctx.doc.root)) {
-    const styles = effectiveStyle(el, ctx.doc);
-    const fg = styles["color"];
-    const bg = styles["background-color"] ?? styles["background"];
-    if (!fg || !bg) continue;
+    const own = effectiveStyle(el, ctx.doc);
 
-    const fgRgb = parseColor(fg);
-    const bgRgb = parseColor(bg);
+    // Only flag elements that actually declare a foreground color. Running on
+    // every element would generate noise: the rule should be about colors
+    // the author chose, not defaults.
+    if (!own["color"]) continue;
+
+    const fgRaw = resolveColor(el, ctx.doc) ?? own["color"];
+    const bgRaw = resolveBackground(el, ctx.doc) ?? DEFAULT_BG;
+
+    const fgRgb = parseColor(fgRaw);
+    const bgRgb = parseColor(bgRaw);
     if (!fgRgb || !bgRgb) continue;
 
-    // Skip when background is fully transparent, we can't say what it'll sit on.
+    // Background effectively transparent all the way up — nothing to compare.
     if ((bgRgb.a ?? 1) === 0) continue;
 
     const ratio = contrastRatio(fgRgb, bgRgb);
-    const isLargeText = detectLargeText(styles);
+    const isLargeText = detectLargeText(own);
     const minRatio = isLargeText ? rule.minRatioLarge : rule.minRatio;
 
     if (ratio < minRatio) {
@@ -32,7 +57,7 @@ export const colorContrast: Rule = (ctx) => {
         severity: rule.severity,
         message: `Contrast ratio ${ratio.toFixed(2)}:1 is below WCAG AA minimum of ${minRatio}:1${isLargeText ? " for large text" : ""}.`,
         element: renderOpenTag(el),
-        suggestion: `Darken the foreground (${fg}) or lighten the background (${bg}) until ratio is at least ${minRatio}:1.`,
+        suggestion: `Darken the foreground (${fgRaw}) or lighten the background (${bgRaw}) until ratio is at least ${minRatio}:1.`,
         line: elementLine(el),
       });
     }

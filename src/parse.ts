@@ -174,6 +174,69 @@ export function effectiveStyle(
 }
 
 /**
+ * Walk from el up to the document root yielding each ancestor element.
+ * Used by rules (notably color-contrast) that need to resolve inherited
+ * properties like background-color.
+ */
+export function* ancestors(el: Element): Generator<Element> {
+  let node: Element | undefined = el;
+  while (node) {
+    const parent = (node as unknown as { parentNode?: unknown }).parentNode as
+      | Element
+      | undefined;
+    if (!parent || !("tagName" in parent)) return;
+    yield parent;
+    node = parent;
+  }
+}
+
+/**
+ * Find the closest ancestor (inclusive) whose effective style defines a
+ * non-transparent background color. Mirrors how browsers resolve background
+ * painting up the ancestor chain. Returns undefined if nothing up the tree
+ * sets a solid background.
+ */
+export function resolveBackground(
+  el: Element,
+  doc: ParsedDoc
+): string | undefined {
+  let node: Element | undefined = el;
+  while (node) {
+    const styles = effectiveStyle(node, doc);
+    const bg = styles["background-color"] ?? styles["background"];
+    if (bg) {
+      const trimmed = bg.trim().toLowerCase();
+      if (trimmed && trimmed !== "transparent" && !trimmed.startsWith("rgba(0, 0, 0, 0)")) {
+        return bg;
+      }
+    }
+    const parent = (node as unknown as { parentNode?: unknown }).parentNode as
+      | Element
+      | undefined;
+    node = parent && "tagName" in parent ? parent : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Find the closest ancestor (inclusive) with an explicit color property.
+ * Color inherits in CSS, so if no ancestor sets it, we fall back to the
+ * browser default (black).
+ */
+export function resolveColor(el: Element, doc: ParsedDoc): string | undefined {
+  let node: Element | undefined = el;
+  while (node) {
+    const styles = effectiveStyle(node, doc);
+    if (styles["color"]) return styles["color"];
+    const parent = (node as unknown as { parentNode?: unknown }).parentNode as
+      | Element
+      | undefined;
+    node = parent && "tagName" in parent ? parent : undefined;
+  }
+  return undefined;
+}
+
+/**
  * Very small selector matcher. Supports:
  *   - tag
  *   - .class

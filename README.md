@@ -1,6 +1,6 @@
 # DesignLint
 
-[![npm](https://img.shields.io/npm/v/designlint.svg)](https://www.npmjs.com/package/designlint)
+[![npm](https://img.shields.io/npm/v/@mukundakatta/designlint.svg)](https://www.npmjs.com/package/@mukundakatta/designlint)
 [![CI](https://github.com/MukundaKatta/DesignLint/actions/workflows/ci.yml/badge.svg)](https://github.com/MukundaKatta/DesignLint/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
@@ -53,7 +53,16 @@ designlint '<inputs...>' [options]
 | `--config <path>` | JSON config file |
 | `--fail-on error\|warning\|info\|never` | Exit nonzero threshold (default `error`) |
 | `--output <path>` | Write output to a file |
+| `--list-rules` | List every rule with its default severity and summary |
 | `-v`, `--version` | Print version |
+
+Scaffold a config with every rule at its default:
+
+```bash
+designlint init                      # writes .designlintrc.json
+designlint init path/to/config.json  # custom path
+designlint init --force              # overwrite existing
+```
 
 **Inputs** can be file paths, globs, or URLs:
 
@@ -80,7 +89,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: MukundaKatta/DesignLint@v0.2.0
+      - uses: MukundaKatta/DesignLint@v0.3.0
         with:
           paths: 'src/**/*.html'
           fail-on: error
@@ -99,7 +108,7 @@ The action:
 ### Programmatic
 
 ```ts
-import { DesignLinter, applyFixes } from "designlint";
+import { DesignLinter, applyFixes } from "@mukundakatta/designlint";
 
 const linter = new DesignLinter({
   rules: {
@@ -123,17 +132,23 @@ const { output, appliedCount } = applyFixes(html, report.issues);
 
 | ID | Checks | Severity | Autofix |
 |---|---|---|---|
-| `color-contrast` | WCAG AA contrast ratio (4.5:1 normal, 3:1 large text). Handles `rgba` alpha composition. | error | no |
+| `color-contrast` | WCAG AA contrast ratio (4.5:1 normal, 3:1 large text). Resolves inherited `color` and ancestor `background-color`; alpha-composes `rgba`. | error | no |
 | `font-size-minimum` | Font sizes below 12px are hard to read. | warning | no |
 | `spacing-consistency` | Margin/padding/gap should snap to your base unit (4 or 8). | info | no |
 | `button-size` | Touch targets must be at least 44x44 (WCAG 2.5.5). | error | no |
 | `heading-hierarchy` | Headings should not skip levels (`h1 -> h3`). | warning | no |
-| `image-alt-text` | Every `<img>` needs meaningful `alt`, or explicit decorative marking. | error | yes |
-| `viewport-meta` | Full documents should include a responsive `<meta name="viewport">`. | warning | yes |
+| `empty-heading` | `<hN>` must contain text (or an `<img alt>`, or `aria-label`). | warning | no |
+| `image-alt-text` | `<img>` and `<input type="image">` need `alt` (or `aria-label`). Flags junk alt like `"image.png"` or `"photo"`. | error | yes (img) |
+| `viewport-meta` | Responsive `<meta name="viewport">` present, with no zoom lockout (`user-scalable=no`, `maximum-scale<=1`). | warning | yes |
 | `link-rel-noopener` | `target="_blank"` links need `rel="noopener"`. | warning | yes |
 | `form-label` | Every `<input>`/`<select>`/`<textarea>` needs a label, aria-label, or wrapping `<label>`. | error | no |
+| `button-type` | `<button>` inside `<form>` must set `type=` (defaults to submit, a common footgun). | warning | yes |
 | `duplicate-id` | `id` attributes must be unique per document. | error | no |
 | `responsive-images` | Flags `<img>` missing `srcset` or `loading="lazy"` hints. | info | no |
+| `html-has-lang` | `<html>` must declare a `lang` attribute. | error | yes |
+| `page-title` | Full documents need a non-empty `<title>`. | warning | no |
+
+Run `designlint --list-rules` for the live rule table at your installed version.
 
 All rules read both inline `style="..."` attributes **and** declarations from `<style>` blocks inside the same document. Simple class/id/tag selectors are supported; descendant combinators and pseudo-classes are ignored.
 

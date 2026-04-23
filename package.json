@@ -1,6 +1,6 @@
 {
   "name": "@mukundakatta/designlint",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "UI/UX design linter for HTML/CSS: accessibility, contrast, spacing, touch targets, and responsive design.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -69,6 +69,7 @@
     "dist",
     "action.yml",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ]
 }

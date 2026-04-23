@@ -24,6 +24,8 @@ export interface RuleConfigs {
   responsiveImages: BaseRuleConfig;
   htmlHasLang: BaseRuleConfig;
   pageTitle: BaseRuleConfig;
+  emptyHeading: BaseRuleConfig;
+  buttonType: BaseRuleConfig;
 }
 
 export interface DesignLintConfig {
@@ -87,6 +89,14 @@ export const DEFAULT_CONFIG: DesignLintConfig = {
       severity: "error",
     },
     pageTitle: {
+      enabled: true,
+      severity: "warning",
+    },
+    emptyHeading: {
+      enabled: true,
+      severity: "warning",
+    },
+    buttonType: {
       enabled: true,
       severity: "warning",
     },

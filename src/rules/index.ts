@@ -12,6 +12,8 @@ import { duplicateId } from "./duplicate-id.js";
 import { responsiveImages } from "./responsive-images.js";
 import { htmlHasLang } from "./html-has-lang.js";
 import { pageTitle } from "./page-title.js";
+import { emptyHeading } from "./empty-heading.js";
+import { buttonType } from "./button-type.js";
 
 export const ALL_RULES: Rule[] = [
   colorContrast,
@@ -27,6 +29,8 @@ export const ALL_RULES: Rule[] = [
   responsiveImages,
   htmlHasLang,
   pageTitle,
+  emptyHeading,
+  buttonType,
 ];
 
 export const RULE_META: Array<{ id: string; key: keyof import("../config.js").RuleConfigs; summary: string }> = [
@@ -43,6 +47,8 @@ export const RULE_META: Array<{ id: string; key: keyof import("../config.js").Ru
   { id: "responsive-images", key: "responsiveImages", summary: "Flag <img> missing srcset/sizes/loading on large images." },
   { id: "html-has-lang", key: "htmlHasLang", summary: "<html> must declare a lang attribute." },
   { id: "page-title", key: "pageTitle", summary: "Full documents need a non-empty <title>." },
+  { id: "empty-heading", key: "emptyHeading", summary: "Headings must contain screen-reader-accessible text." },
+  { id: "button-type", key: "buttonType", summary: "<button> in a <form> must set type= to avoid accidental submit." },
 ];
 
 export * from "./types.js";
