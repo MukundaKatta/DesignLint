@@ -60,7 +60,7 @@
     "@types/css-tree": "^2.3.10",
     "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=18"
