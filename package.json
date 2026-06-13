@@ -52,7 +52,7 @@
   "dependencies": {
     "commander": "^12.1.0",
     "css-tree": "^3.0.0",
-    "globby": "^14.0.2",
+    "globby": "^16.2.0",
     "parse5": "^7.2.1",
     "picocolors": "^1.1.1"
   },
