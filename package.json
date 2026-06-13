@@ -50,7 +50,7 @@
   },
   "homepage": "https://github.com/MukundaKatta/DesignLint#readme",
   "dependencies": {
-    "commander": "^12.1.0",
+    "commander": "^15.0.0",
     "css-tree": "^3.0.0",
     "globby": "^14.0.2",
     "parse5": "^7.2.1",
